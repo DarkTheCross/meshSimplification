@@ -11,8 +11,8 @@
 #include <random>
 #include <time.h>
 #include <stack>
-#include <map>
 #include <cinder/gl/gl.h>
+#include <map>
 
 using namespace std;
 
@@ -221,6 +221,35 @@ void meshManager::loadSTLFile(const char* filename)
     cout<<"Triagles: "<<_meshTriangles.size()<<endl;
     cout<<"Sides: "<<_meshEdges.size()<<endl;
     cout<<"Points: "<<_meshVertices.size()<<endl;
+    
+    /*
+    
+    for(size_t i = 0; i<_meshTriangles.size(); i++)
+    {
+        assert(_meshTriangles[i]->triangleEdges[0] != NULL);
+        assert(_meshTriangles[i]->triangleEdges[1] != NULL);
+        assert(_meshTriangles[i]->triangleEdges[2] != NULL);
+        assert(_meshTriangles[i]->triangleVertices[0] != NULL);
+        assert(_meshTriangles[i]->triangleVertices[1] != NULL);
+        assert(_meshTriangles[i]->triangleVertices[2] != NULL);
+    }
+    
+    for(size_t i = 0; i<_meshEdges.size(); i++)
+    {
+        std::shared_ptr<MeshEdge> tmpPointer;
+        mSides mtmps;
+        if(_meshEdges[i]->adjacentTriangles[1] == NULL)
+        {
+            tmpPointer = _meshEdges[i];
+            mtmps = _sides[i];
+        }
+        assert(_meshEdges[i]->adjacentTriangles[0] != NULL);
+        assert(_meshEdges[i]->adjacentTriangles[1] != NULL);
+        assert(_meshEdges[i]->edgeVertices[0] != NULL);
+        assert(_meshEdges[i]->edgeVertices[1] != NULL);
+    }
+     */
+    
 }
 
 void meshManager::writeSTLFile(const char* filename) {
@@ -231,8 +260,8 @@ void meshManager::writeSTLFile(const char* filename) {
         return;
     }
     char header_info[80] = "";
-    size_t r = _triangles.size();
-    cout << "triangle size: " << _triangles.size() << endl;
+    size_t r = _meshTriangles.size();
+    cout << "triangle size: " << _meshTriangles.size() << endl;
     char * n_triangles = (char*)&r;
     file.write(header_info, 80);
     file.write(n_triangles, 4);
@@ -241,19 +270,21 @@ void meshManager::writeSTLFile(const char* filename) {
     
     for (unsigned int i = 0; i<_triangles.size(); i++) {
         float norm[3];
-        norm[0] = _triangles[i].mNormal[0];
-        norm[1] = _triangles[i].mNormal[1];
-        norm[2] = _triangles[i].mNormal[2];
+        norm[0] = _meshTriangles[i]->triangleNormal.x;
+        norm[1] = _meshTriangles[i]->triangleNormal.y;
+        norm[2] = _meshTriangles[i]->triangleNormal.z;
         // write normal
         file.write((char *)norm, 12);
         // write vertices
         float tmpFloat;
         for (size_t ots = 0; ots<3; ots++)
         {
-            for (size_t j = 0; j<3; j++) {
-                tmpFloat = _points[_triangles[i].vertices[ots]][j];
-                file.write((char *)&tmpFloat, 4);
-            }
+            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->x;
+            file.write((char *)&tmpFloat, 4);
+            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->y;
+            file.write((char *)&tmpFloat, 4);
+            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->z;
+            file.write((char *)&tmpFloat, 4);
         }
         file.write(dummy, 2);
     }
@@ -264,21 +295,34 @@ void meshManager::calculateRidgeAngles()
     cinder::vec3 n1, n2, p1, ridgeVect;
     cinder::vec3 normalCross;
     double zero_thresh = 1E-4;
-    for(size_t i = 0; i<_sides.size(); i++)
+    for(size_t i = 0; i<_meshEdges.size(); i++)
     {
-        n1 = cinder::normalize(_triangles[_sides[i].triangles[0]].mNormal);
-        n2 = cinder::normalize(_triangles[_sides[i].triangles[1]].mNormal);
-        ridgeVect = _points[_sides[i].vertices[1]] - _points[_sides[i].vertices[0]];
-        size_t id1 = _triangles[_sides[i].triangles[0]].vertices[0] + _triangles[_sides[i].triangles[0]].vertices[1] + _triangles[_sides[i].triangles[0]].vertices[2] - _sides[i].vertices[1] - _sides[i].vertices[0];
-
-        p1 = _points[id1] - _points[_sides[i].vertices[0]];
+        assert(_meshEdges[i]->adjacentTriangles[0] != NULL);
+        assert(_meshEdges[i]->adjacentTriangles[1] != NULL);
+        n1 = _meshEdges[i]->adjacentTriangles[0]->triangleNormal;
+        n2 = _meshEdges[i]->adjacentTriangles[1]->triangleNormal;
+        ridgeVect = *(_meshEdges[i]->edgeVertices[1]) - *(_meshEdges[i]->edgeVertices[0]);
+        std::shared_ptr<cinder::vec3> tmpVecPointer = NULL;
+        for(size_t j = 0; j<3; j++)
+        {
+            if (_meshEdges[i]->adjacentTriangles[0]->triangleVertices[j] != _meshEdges[i]->edgeVertices[0] && _meshEdges[i]->adjacentTriangles[0]->triangleVertices[j] != _meshEdges[i]->edgeVertices[1] )
+            {
+                tmpVecPointer = _meshEdges[i]->adjacentTriangles[0]->triangleVertices[j];
+                break;
+            }
+        }
+        if(tmpVecPointer == NULL)
+        {
+            std::cout<<"Fuck!"<<std::endl;
+        }
+        p1 = *tmpVecPointer;
         p1 = p1 - cinder::dot(p1, ridgeVect) * ridgeVect;
         
         normalCross = cinder::cross(n1, n2);
         
         if( normalCross.x * normalCross.x + normalCross.y * normalCross.y + normalCross.z * normalCross.z < zero_thresh )
         {
-            _sides[i].ridgeAngle = 0;
+            _meshEdges[i]->edgeAngle = 0;
         }
         else
         {
@@ -286,14 +330,14 @@ void meshManager::calculateRidgeAngles()
             if(cinder::dot(p1, n2) > 0)
             {
                 //concave
-                _sides[i].ridgeAngle = -acos(cangle);
-                _sides[i].mColor = cinder::Color(1,0,0);
+                _meshEdges[i]->edgeAngle = -acos(cangle);
+                _meshEdges[i]->edgeColor = cinder::Color(1,0,0);
             }
             else
             {
                 //convex
-                _sides[i].ridgeAngle = acos(cangle);
-                _sides[i].mColor = cinder::Color(0,1,0);
+                _meshEdges[i]->edgeAngle = acos(cangle);
+                _meshEdges[i]->edgeColor = cinder::Color(0,1,0);
             }
         }
     }
@@ -303,46 +347,38 @@ void meshManager::calculateRidgeAngles()
 
 void meshManager::drawFrame()
 {
-    /*
-    cinder::gl::begin(GL_LINES);
-    for(size_t i = 0; i<_sides.size(); i++)
-    {
-        cinder::gl::color(_sides[i].mColor);
-        cinder::gl::vertex(_points[_sides[i].vertices[0]]);
-        cinder::gl::vertex(_points[_sides[i].vertices[1]]);
-    }
-    cinder::gl::end();
-     */
-    
+    vector<size_t> errEdgeId;
     cinder::gl::begin(GL_LINES);
     for(size_t i = 0; i<_meshEdges.size(); i++)
     {
         cinder::gl::color(_meshEdges[i]->edgeColor);
+        
+        
+        if(_meshEdges[i]->adjacentTriangles[1] == NULL)
+        {
+            cinder::gl::color(cinder::Color(1,0,0));
+            errEdgeId.push_back(i);
+        }
+        
         cinder::gl::vertex(*(_meshEdges[i]->edgeVertices[0]));
         cinder::gl::vertex(*(_meshEdges[i]->edgeVertices[1]));
+    }
+    cinder::gl::end();
+    
+    cinder::gl::begin(GL_TRIANGLES);
+    for(size_t i = 0; i<errEdgeId.size(); i++)
+    {
+        auto tmpTriangle = _meshEdges[errEdgeId[i]]->adjacentTriangles[0];
+        cinder::gl::color(cinder::Color(1,0,0));
+        cinder::gl::vertex(*(tmpTriangle->triangleVertices[0]));
+        cinder::gl::vertex(*(tmpTriangle->triangleVertices[1]));
+        cinder::gl::vertex(*(tmpTriangle->triangleVertices[2]));
     }
     cinder::gl::end();
 }
 
 void meshManager::drawMeshes()
 {
-    cinder::gl::begin(GL_TRIANGLES);
-    for(size_t i = 0; i<_triangles.size(); i++)
-    {
-        cinder::gl::color(_triangles[i].mColor);
-        cinder::gl::vertex(_points[_triangles[i].vertices[0]]);
-        cinder::gl::vertex(_points[_triangles[i].vertices[1]]);
-        cinder::gl::vertex(_points[_triangles[i].vertices[2]]);
-    }
-    cinder::gl::end();
-
-    /*
-    std::default_random_engine generator(int(time(0)));
-    std::uniform_real_distribution<double> distribution(0.3, 1);
-    for(size_t i = 0; i<_triangles.size(); i++)
-    {
-        _meshTriangles[i]->triangleColor = cinder::Color(distribution(generator), distribution(generator), distribution(generator));
-    }
     cinder::gl::begin(GL_TRIANGLES);
     for(size_t i = 0; i<_meshTriangles.size(); i++)
     {
@@ -352,19 +388,20 @@ void meshManager::drawMeshes()
         cinder::gl::vertex(*(_meshTriangles[i]->triangleVertices[2]));
     }
     cinder::gl::end();
-     */
-    
 }
 
 void meshManager::initTriMesh(cinder::TriMesh *tm)
 {
-    for(size_t i = 0; i<_points.size(); i++)
+    std::map<std::shared_ptr<cinder::vec3>, int> vertexIdMap;
+    for(size_t i = 0; i<_meshVertices.size(); i++)
     {
-        tm->appendPosition(_points[i]);
+        tm->appendPosition(*(_meshVertices[i]));
+        vertexIdMap[_meshVertices[i]] = int(i);
     }
-    for(size_t i = 0; i<_triangles.size(); i++)
+    for(size_t i = 0; i<_meshTriangles.size(); i++)
     {
-        tm->appendTriangle(int(_triangles[i].vertices[0]), int(_triangles[i].vertices[1]), int(_triangles[i].vertices[2]));
+        tm->appendTriangle( vertexIdMap[_meshTriangles[i]->triangleVertices[0]], vertexIdMap[_meshTriangles[i]->triangleVertices[1]],
+                           vertexIdMap[_meshTriangles[i]->triangleVertices[2]]);
     }
     tm->recalculateNormals();
 }
@@ -373,14 +410,22 @@ void meshManager::watershedSegmentation(double segmentThreshold)
 {
     size_t _meshGroupNum = 0;
     bool segmentationEnd = false;
+    
+    std::map< std::shared_ptr<MeshTriangle>, size_t > triangleMap;
+    
+    for(size_t i = 0; i<_meshTriangles.size(); i++)
+    {
+        triangleMap[_meshTriangles[i]] = i;
+    }
+    
     while(!segmentationEnd)
     {
         std::cout<<"segment iteration: "<<_meshGroupNum<<std::endl;
         _meshGroupNum++;
         std::stack<size_t> segStack;
-        for(size_t i = 0; i<_triangles.size(); i++)
+        for(size_t i = 0; i<_meshTriangles.size(); i++)
         {
-            if(_triangles[i].groupNumber == 0)
+            if(_meshTriangles[i]->groupNumber == 0)
             {
                 segStack.push(i);
                 break;
@@ -391,20 +436,19 @@ void meshManager::watershedSegmentation(double segmentThreshold)
             //std::cout<<"Stack: "<<segStack.size()<<std::endl;
             size_t currentMeshIndex = segStack.top();
             segStack.pop();
-            _triangles[currentMeshIndex].groupNumber = _meshGroupNum;
+            _meshTriangles[currentMeshIndex]->groupNumber = _meshGroupNum;
             for(size_t i = 0; i<3; i++)
             {
-                size_t nextIdx = _sides[_triangles[currentMeshIndex].sides[i]].triangles[0] + _sides[_triangles[currentMeshIndex].sides[i]].triangles[1] - currentMeshIndex;
-                if( _triangles[nextIdx].groupNumber == 0 && abs(_sides[_triangles[currentMeshIndex].sides[i]].ridgeAngle) < segmentThreshold)
+                if( (_meshTriangles[currentMeshIndex]->triangleEdges[i]->adjacentTriangles[0]->groupNumber == 0 || _meshTriangles[currentMeshIndex]->triangleEdges[i]->adjacentTriangles[1]->groupNumber == 0 ) && abs(_meshTriangles[currentMeshIndex]->triangleEdges[i]->edgeAngle) < segmentThreshold)
                 {
-                    segStack.push(nextIdx);
+                    segStack.push(triangleMap[_meshTriangles[currentMeshIndex]->triangleEdges[i]->adjacentTriangles[0]] + triangleMap[_meshTriangles[currentMeshIndex]->triangleEdges[i]->adjacentTriangles[1]] - currentMeshIndex );
                 }
             }
         }
         segmentationEnd = true;
-        for(size_t i = 0; i<_triangles.size(); i++)
+        for(size_t i = 0; i<_meshTriangles.size(); i++)
         {
-            if(_triangles[i].groupNumber == 0)
+            if(_meshTriangles[i]->groupNumber == 0)
             {
                 segmentationEnd = false;
                 segStack.push(i);
@@ -423,16 +467,16 @@ void meshManager::watershedSegmentation(double segmentThreshold)
         tmpColors.push_back(cinder::Color(distribution(generator), distribution(generator), distribution(generator)));
     }
     
-    for(size_t j = 0; j<_triangles.size(); j++)
+    for(size_t j = 0; j<_meshTriangles.size(); j++)
     {
-        _triangles[j].mColor = tmpColors[_triangles[j].groupNumber - 1];
+        _meshTriangles[j]->triangleColor = tmpColors[_triangles[j].groupNumber - 1];
     }
     
     
-    for(size_t i = 0; i<_sides.size(); i++)
+    for(size_t i = 0; i<_meshEdges.size(); i++)
     {
-        _sides[i].mColor = cinder::Color(0,0,0);
-        if( _triangles[_sides[i].triangles[0]].groupNumber != _triangles[_sides[i].triangles[1]].groupNumber )
+        _meshEdges[i]->edgeColor = cinder::Color(0,0,0);
+        if( _meshEdges[i]->adjacentTriangles[0] -> groupNumber != _meshEdges[i]->adjacentTriangles[1]->groupNumber )
         {
             //feature
             if(_sides[i].ridgeAngle > 0)
@@ -441,7 +485,7 @@ void meshManager::watershedSegmentation(double segmentThreshold)
             }
             else
             {
-                _sides[i].mColor = cinder::Color(0, 1,0);
+                _sides[i].mColor = cinder::Color(0,1,0);
             }
         }
     }

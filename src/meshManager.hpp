@@ -64,6 +64,8 @@ public:
     std::vector<mTriangle> _triangles;
     std::vector<mSides> _sides;
     std::vector<cinder::vec3> _points;
+    std::map<std::shared_ptr<cinder::vec3>, size_t> _verticesMap;
+    std::map<std::shared_ptr<MeshEdge>, size_t> _edgesMap;
     
     std::vector<std::shared_ptr<MeshEdge> > _meshEdges;
     std::vector<std::shared_ptr<MeshTriangle> > _meshTriangles;

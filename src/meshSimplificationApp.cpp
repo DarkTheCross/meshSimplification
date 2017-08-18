@@ -25,8 +25,15 @@ class meshSimplificationApp : public App {
     TriMesh * tm;
 };
 
+void prepareSettings( meshSimplificationApp::Settings *settings )
+{
+    settings->setHighDensityDisplayEnabled(); // try removing this line
+    settings->setMultiTouchEnabled( false );
+}
+
 void meshSimplificationApp::setup()
 {
+    
     //getWindow()->setSize(2000, 1000);
     //getWindow()->setBorderless(true);
     cam.setEyePoint( vec3( 0, 0, 1000) );
@@ -42,15 +49,16 @@ void meshSimplificationApp::setup()
     gl::enableDepthRead();
     gl::enableDepthWrite();
     
-    mm.loadSTLFile("/Users/mingxiangfan/Documents/programming/c++/cinder_0.9.1_mac/fmx/meshSimplification/src/link_3.stl");
+    mm.loadSTLFile("/Users/mingxiangfan/Documents/programming/creative/cinder_0.9.1_mac/fmx/meshSimplification/src/link_3.stl");
     
-    mm.calculateRidgeAngles();
+    //mm.calculateRidgeAngles();
     
-    mm.watershedSegmentation( M_PI/180*15 );
+    //mm.watershedSegmentation( M_PI/180*15 );
     
     tm = new TriMesh();
     
     mm.initTriMesh(tm);
+
 
 }
 
@@ -76,7 +84,7 @@ void meshSimplificationApp::draw()
     gl::lineWidth(5);
     //mm.drawMeshes();
     mm.drawFrame();
-    
+
     /*
     gl::color(1, 1, 1);
     gl::draw(*tm);
