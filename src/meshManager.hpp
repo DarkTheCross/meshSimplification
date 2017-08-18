@@ -20,6 +20,7 @@ public:
     cinder::Color mColor;
     cinder::vec3 mNormal;
     size_t groupNumber;
+    cinder::vec2 getAABBXY();
 };
 
 class mSides{
@@ -70,6 +71,9 @@ public:
     std::vector<std::shared_ptr<MeshEdge> > _meshEdges;
     std::vector<std::shared_ptr<MeshTriangle> > _meshTriangles;
     std::vector<std::shared_ptr<cinder::vec3> > _meshVertices;
+    
+    // mesh refinement changes p2 to p1
+    void refineMesh(size_t p1, size_t p2);
     
     // functions about drawing
     void drawFrame();

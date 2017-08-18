@@ -222,8 +222,6 @@ void meshManager::loadSTLFile(const char* filename)
     cout<<"Sides: "<<_meshEdges.size()<<endl;
     cout<<"Points: "<<_meshVertices.size()<<endl;
     
-    /*
-    
     for(size_t i = 0; i<_meshTriangles.size(); i++)
     {
         assert(_meshTriangles[i]->triangleEdges[0] != NULL);
@@ -248,8 +246,126 @@ void meshManager::loadSTLFile(const char* filename)
         assert(_meshEdges[i]->edgeVertices[0] != NULL);
         assert(_meshEdges[i]->edgeVertices[1] != NULL);
     }
-     */
+}
+
+void meshManager::refineMesh(size_t p1, size_t p2)
+{
+    std::vector<size_t> errEdges;
+    for(size_t i = 0; i<_meshEdges.size(); i++)
+    {
+        if(_meshEdges[i]->adjacentTriangles[1] == NULL)
+        {
+            errEdges.push_back(i);
+            std::cout<<"===== begin edge ====="<<std::endl;
+            auto tmpVec = _meshEdges[i]->edgeVertices[0];
+            std::cout<<"p1: "<< tmpVec->x <<", "<<tmpVec->y<<", "<< tmpVec->z;
+            for(size_t j = 0; j<_meshVertices.size(); j++)
+            {
+                if(_meshVertices[j] == tmpVec)
+                {
+                    cout <<"  id = "<<j<<endl;
+                }
+            }
+            tmpVec = _meshEdges[i]->edgeVertices[1];
+            std::cout<<"p2: "<< tmpVec->x <<", "<<tmpVec->y<<", "<< tmpVec->z;
+            for(size_t j = 0; j<_meshVertices.size(); j++)
+            {
+                if(_meshVertices[j] == tmpVec)
+                {
+                    cout <<"  id = "<<j<<endl;
+                }
+            }
+            std::cout<<"===== end edge ====="<<std::endl;
+        }
+    }
     
+    // fix link_3 : vertex19385->vertex17513
+    // fix link_4 : 1291-1236
+    
+    auto vertex19385 = _meshVertices[1291];
+    auto vertex17513 = _meshVertices[1236];
+    for(size_t i = 0; i<_meshEdges.size(); i++)
+    {
+        for(size_t j = 0; j<2; j++)
+        {
+            if(_meshEdges[i]->edgeVertices[j] == vertex19385)
+            {
+                cout<<i<<endl;
+                _meshEdges[i]->edgeVertices[j] = vertex17513;
+            }
+        }
+    }
+    cout<<"++"<<endl;
+    for(size_t i = 0; i<_meshTriangles.size(); i++)
+    {
+        for(size_t j = 0; j<3; j++)
+        {
+            if(_meshTriangles[i]->triangleVertices[j] == vertex19385)
+            {
+                cout<<i<<endl;
+                _meshTriangles[i]->triangleVertices[j] = vertex17513;
+            }
+        }
+    }
+    cout<<"++"<<endl;
+    vector<size_t> eraseId;
+    for(size_t i = 0; i<errEdges.size(); i++)
+    {
+        for(size_t j = 0; j<errEdges.size(); j++)
+        {
+            if( (_meshEdges[errEdges[i]]->edgeVertices[0] == _meshEdges[errEdges[j]]->edgeVertices[0] &&
+                 _meshEdges[errEdges[i]]->edgeVertices[1] == _meshEdges[errEdges[j]]->edgeVertices[1]) ||
+               (_meshEdges[errEdges[i]]->edgeVertices[0] == _meshEdges[errEdges[j]]->edgeVertices[1] &&
+                _meshEdges[errEdges[i]]->edgeVertices[1] == _meshEdges[errEdges[j]]->edgeVertices[0]) )
+            {
+                // j->i
+                eraseId.push_back(j);
+                for(size_t k = 0; k<3;k++)
+                {
+                    if(_meshEdges[errEdges[j]]->adjacentTriangles[0]->triangleEdges[k] == _meshEdges[errEdges[j]])
+                    {
+                        _meshEdges[errEdges[j]]->adjacentTriangles[0]->triangleEdges[k] =_meshEdges[errEdges[i]];
+                        _meshEdges[errEdges[i]]->adjacentTriangles[1] = _meshEdges[errEdges[j]]->adjacentTriangles[0];
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    for(std::vector<size_t>::iterator idx = eraseId.end()-1; idx>=eraseId.begin(); idx--)
+    {
+        _meshEdges.erase( _meshEdges.begin() + *idx);
+    }
+    _meshVertices.erase(_meshVertices.begin()+19385);
+    
+    errEdges.clear();
+    for(size_t i = 0; i<_meshEdges.size(); i++)
+    {
+        if(_meshEdges[i]->adjacentTriangles[1] == NULL)
+        {
+            errEdges.push_back(i);
+            std::cout<<"===== begin edge ====="<<std::endl;
+            auto tmpVec = _meshEdges[i]->edgeVertices[0];
+            std::cout<<"p1: "<< tmpVec->x <<", "<<tmpVec->y<<", "<< tmpVec->z;
+            for(size_t j = 0; j<_meshVertices.size(); j++)
+            {
+                if(_meshVertices[j] == tmpVec)
+                {
+                    cout <<"  id = "<<j<<endl;
+                }
+            }
+            tmpVec = _meshEdges[i]->edgeVertices[1];
+            std::cout<<"p2: "<< tmpVec->x <<", "<<tmpVec->y<<", "<< tmpVec->z;
+            for(size_t j = 0; j<_meshVertices.size(); j++)
+            {
+                if(_meshVertices[j] == tmpVec)
+                {
+                    cout <<"  id = "<<j<<endl;
+                }
+            }
+            std::cout<<"===== end edge ====="<<std::endl;
+        }
+    }
 }
 
 void meshManager::writeSTLFile(const char* filename) {
@@ -279,11 +395,11 @@ void meshManager::writeSTLFile(const char* filename) {
         float tmpFloat;
         for (size_t ots = 0; ots<3; ots++)
         {
-            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->x;
+            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->x/1000;
             file.write((char *)&tmpFloat, 4);
-            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->y;
+            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->y/1000;
             file.write((char *)&tmpFloat, 4);
-            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->z;
+            tmpFloat = _meshTriangles[i]->triangleVertices[ots]->z/1000;
             file.write((char *)&tmpFloat, 4);
         }
         file.write(dummy, 2);
@@ -347,32 +463,12 @@ void meshManager::calculateRidgeAngles()
 
 void meshManager::drawFrame()
 {
-    vector<size_t> errEdgeId;
     cinder::gl::begin(GL_LINES);
     for(size_t i = 0; i<_meshEdges.size(); i++)
     {
         cinder::gl::color(_meshEdges[i]->edgeColor);
-        
-        
-        if(_meshEdges[i]->adjacentTriangles[1] == NULL)
-        {
-            cinder::gl::color(cinder::Color(1,0,0));
-            errEdgeId.push_back(i);
-        }
-        
         cinder::gl::vertex(*(_meshEdges[i]->edgeVertices[0]));
         cinder::gl::vertex(*(_meshEdges[i]->edgeVertices[1]));
-    }
-    cinder::gl::end();
-    
-    cinder::gl::begin(GL_TRIANGLES);
-    for(size_t i = 0; i<errEdgeId.size(); i++)
-    {
-        auto tmpTriangle = _meshEdges[errEdgeId[i]]->adjacentTriangles[0];
-        cinder::gl::color(cinder::Color(1,0,0));
-        cinder::gl::vertex(*(tmpTriangle->triangleVertices[0]));
-        cinder::gl::vertex(*(tmpTriangle->triangleVertices[1]));
-        cinder::gl::vertex(*(tmpTriangle->triangleVertices[2]));
     }
     cinder::gl::end();
 }
@@ -469,9 +565,8 @@ void meshManager::watershedSegmentation(double segmentThreshold)
     
     for(size_t j = 0; j<_meshTriangles.size(); j++)
     {
-        _meshTriangles[j]->triangleColor = tmpColors[_triangles[j].groupNumber - 1];
+        _meshTriangles[j]->triangleColor = tmpColors[_meshTriangles[j]->groupNumber - 1];
     }
-    
     
     for(size_t i = 0; i<_meshEdges.size(); i++)
     {
